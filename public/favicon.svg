@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Needle -->
+  <line x1="12" y1="52" x2="44" y2="10" stroke="#4f46e5" stroke-width="3" stroke-linecap="round"/>
+  <!-- Needle tip -->
+  <polygon points="44,10 48,4 50,12" fill="#4f46e5"/>
+  <!-- Needle eye -->
+  <ellipse cx="16" cy="46" rx="2.5" ry="4" fill="none" stroke="#4f46e5" stroke-width="2"/>
+  <!-- Thread -->
+  <path d="M16 50 Q8 56 18 58 Q28 60 24 52 Q20 44 30 46 Q40 48 36 40 Q32 32 42 34" 
+        fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 2"/>
+</svg>
