@@ -258,7 +258,7 @@ const LoginPage = () => {
             </form>
           </Card>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-2">
             <p className="text-sm text-gray-500 dark:text-slate-400">
               {isLogin ? "Don't have an account? " : "Already have an account? "}
               <button
@@ -268,6 +268,19 @@ const LoginPage = () => {
               >
                 {isLogin ? 'Sign Up' : 'Sign In'}
               </button>
+            </p>
+            <p className="text-xs text-gray-400 dark:text-slate-500 pt-1">
+              Store Owner?{' '}
+              <a
+                href="/admin"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate('/admin');
+                }}
+                className="text-amber-600 dark:text-amber-400 font-semibold hover:underline"
+              >
+                Go to Secure Admin Portal &rarr;
+              </a>
             </p>
           </div>
         </div>

@@ -402,7 +402,7 @@ const CustomerDetailPage = () => {
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h3 className="text-lg font-bold font-heading text-gray-800 dark:text-white">Standard Specifications</h3>
-                    <p className="text-xs text-gray-400 dark:text-slate-500">Latest recorded size profile (in inches)</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Latest recorded size profile (in cm)</p>
                   </div>
                   {!isCustomer && (
                     <Button onClick={handleOpenAddMeasurement} variant="primary" size="sm" className="no-print">
@@ -421,7 +421,7 @@ const CustomerDetailPage = () => {
                           <div key={m.key} className="p-4 rounded-xl bg-gray-50 dark:bg-slate-850 border border-gray-100 dark:border-slate-800 text-center hover:shadow-sm transition-all">
                             <span className="text-xs text-gray-400 dark:text-slate-550 font-semibold uppercase block">{m.label}</span>
                             <span className="text-2xl font-bold font-heading text-primary-600 dark:text-primary-400 mt-1 block">
-                              {latestMeas[m.key] || '0'}"
+                              {latestMeas[m.key] || '0'} cm
                             </span>
                           </div>
                         ))}
@@ -433,7 +433,7 @@ const CustomerDetailPage = () => {
                           <div key={m.key} className="p-4 rounded-xl bg-gray-50 dark:bg-slate-850 border border-gray-100 dark:border-slate-800 text-center hover:shadow-sm transition-all">
                             <span className="text-xs text-gray-400 dark:text-slate-550 font-semibold uppercase block">{m.label}</span>
                             <span className="text-2xl font-bold font-heading text-primary-600 dark:text-primary-400 mt-1 block">
-                              {latestMeas[m.key] || '0'}"
+                              {latestMeas[m.key] || '0'} cm
                             </span>
                           </div>
                         ))}
@@ -544,7 +544,7 @@ const CustomerDetailPage = () => {
             {gender === 'male' ? (
               <>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Neck (inches)</label>
+                  <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Neck (cm)</label>
                   <input
                     type="number"
                     step="0.1"
@@ -555,7 +555,7 @@ const CustomerDetailPage = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Chest (inches)</label>
+                  <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Chest (cm)</label>
                   <input
                     type="number"
                     step="0.1"
@@ -566,7 +566,7 @@ const CustomerDetailPage = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Trouser Length (inches)</label>
+                  <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Trouser Length (cm)</label>
                   <input
                     type="number"
                     step="0.1"
@@ -579,7 +579,7 @@ const CustomerDetailPage = () => {
               </>
             ) : (
               <div className="space-y-1">
-                <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Bust (inches)</label>
+                <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Bust (cm)</label>
                 <input
                   type="number"
                   step="0.1"
@@ -593,7 +593,7 @@ const CustomerDetailPage = () => {
 
             {/* Common fields */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Waist (inches)</label>
+              <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Waist (cm)</label>
               <input
                 type="number"
                 step="0.1"
@@ -604,7 +604,7 @@ const CustomerDetailPage = () => {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Hip (inches)</label>
+              <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Hip (cm)</label>
               <input
                 type="number"
                 step="0.1"
@@ -615,7 +615,7 @@ const CustomerDetailPage = () => {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Shoulder (inches)</label>
+              <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Shoulder (cm)</label>
               <input
                 type="number"
                 step="0.1"
@@ -626,7 +626,7 @@ const CustomerDetailPage = () => {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Sleeve Length (inches)</label>
+              <label className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-450">Sleeve Length (cm)</label>
               <input
                 type="number"
                 step="0.1"
@@ -758,14 +758,14 @@ const CustomerDetailPage = () => {
                 FEMALE_MEASUREMENTS.map((m) => (
                   <div key={m.key} className="border-b pb-2">
                     <span className="text-xs uppercase text-gray-500 font-bold block">{m.label}</span>
-                    <span className="text-2xl font-bold mt-1 block">{latestMeas[m.key] || '0'}"</span>
+                    <span className="text-2xl font-bold mt-1 block">{latestMeas[m.key] || '0'} cm</span>
                   </div>
                 ))
               ) : (
                 MALE_MEASUREMENTS.map((m) => (
                   <div key={m.key} className="border-b pb-2">
                     <span className="text-xs uppercase text-gray-500 font-bold block">{m.label}</span>
-                    <span className="text-2xl font-bold mt-1 block">{latestMeas[m.key] || '0'}"</span>
+                    <span className="text-2xl font-bold mt-1 block">{latestMeas[m.key] || '0'} cm</span>
                   </div>
                 ))
               )}

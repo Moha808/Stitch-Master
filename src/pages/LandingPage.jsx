@@ -51,7 +51,6 @@ const LandingPage = () => {
         <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-gray-500 dark:text-slate-400">
           <a href="#features" className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">Features</a>
           <a href="#mockup" className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">Interface</a>
-          <a href="#stats" className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">Metrics</a>
         </div>
 
         {/* Theme Toggle & CTA */}
@@ -126,22 +125,6 @@ const LandingPage = () => {
                 Explore Features
               </Button>
             </a>
-          </div>
-
-          {/* Trust stats */}
-          <div id="stats" className="grid grid-cols-3 gap-6 pt-8 border-t border-gray-100 dark:border-slate-800 max-w-md mx-auto lg:mx-0 transition-colors">
-            <div>
-              <span className="text-3xl font-extrabold text-gray-800 dark:text-slate-100 font-heading block transition-colors">5,000+</span>
-              <span className="text-xs text-gray-400 dark:text-slate-500 block mt-0.5">Suits Crafted</span>
-            </div>
-            <div>
-              <span className="text-3xl font-extrabold text-gray-800 dark:text-slate-100 font-heading block transition-colors">99.4%</span>
-              <span className="text-xs text-gray-400 dark:text-slate-500 block mt-0.5">On-Time Delivery</span>
-            </div>
-            <div>
-              <span className="text-3xl font-extrabold text-gray-800 dark:text-slate-100 font-heading block transition-colors">200+</span>
-              <span className="text-xs text-gray-400 dark:text-slate-500 block mt-0.5">Fashion Houses</span>
-            </div>
           </div>
         </div>
 
@@ -220,32 +203,11 @@ const LandingPage = () => {
             <HiBuildingStorefront />
           </div>
           <h2 className="text-3xl md:text-4xl font-extrabold font-heading text-gray-900 dark:text-white leading-tight transition-colors">
-            Role-Based Access Control <br />for your shop staff.
+            Tailor-Made Tools <br />for your workshop floor.
           </h2>
           <p className="text-gray-500 dark:text-slate-400 leading-relaxed text-sm transition-colors">
-            Maintain tight security boundaries. Assign different access keys based on duties:
+            Streamlined workflow from client fitting to cutting table and final customer invoice handoff. Everything you need to keep your shop running smoothly.
           </p>
-
-          <div className="space-y-4 text-xs font-semibold text-gray-700">
-            <div className="flex items-start gap-3">
-              <span className="px-2.5 py-1 rounded-full bg-primary-100 dark:bg-primary-950/50 text-primary-700 dark:text-primary-400 shrink-0 transition-colors animate-pulse-soft">Admin</span>
-              <p className="text-gray-500 dark:text-slate-400 font-medium pt-0.5 leading-relaxed transition-colors">
-                Full CRUD control, financials, setting configurations, and reports.
-              </p>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="px-2.5 py-1 rounded-full bg-sky-100 dark:bg-sky-950/50 text-sky-700 dark:text-sky-400 shrink-0 transition-colors">Staff</span>
-              <p className="text-gray-500 dark:text-slate-400 font-medium pt-0.5 leading-relaxed transition-colors">
-                Access measurements, log orders, and payments. Cannot delete records or access settings.
-              </p>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="px-2.5 py-1 rounded-full bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-400 shrink-0 transition-colors">Customer</span>
-              <p className="text-gray-500 dark:text-slate-400 font-medium pt-0.5 leading-relaxed transition-colors">
-                Read-only window showing status badges, expected delivery dates, and balances due.
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* Decorative Feature Grid Mock */}

@@ -70,34 +70,76 @@ const CustomersPage = () => {
     setModalOpen(true);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     const errors = {};
-    if (!fullName.trim()) errors.fullName = 'Full Name is required.';
-    if (!phone.trim()) errors.phone = 'Phone Number is required.';
+
+    const trimmedName = fullName.trim();
+    if (!trimmedName) {
+      errors.fullName = 'Full Name is required.';
+    } else if (trimmedName.length < 2) {
+      errors.fullName = 'Full Name must be at least 2 characters.';
+    }
+
+    const trimmedPhone = phone.trim();
+    const phoneRegex = /^[+]?[\d\s-]{10,16}$/;
+    if (!trimmedPhone) {
+      errors.phone = 'Phone Number is required.';
+    } else if (!phoneRegex.test(trimmedPhone)) {
+      errors.phone = 'Please enter a valid phone number (e.g. +2348031234567 or 08012345678).';
+    }
+
+    const trimmedEmail = email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail) {
+      errors.email = 'Email Address is required.';
+    } else if (!emailRegex.test(trimmedEmail)) {
+      errors.email = 'Please enter a valid email address (e.g. client@example.com).';
+    }
+
+    const trimmedAddress = address.trim();
+    if (!trimmedAddress) {
+      errors.address = 'Residential Address is required.';
+    } else if (trimmedAddress.length < 5) {
+      errors.address = 'Address must be at least 5 characters for accurate delivery.';
+    }
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
     }
 
-    const payload = { fullName, phone, email, address };
+    const payload = {
+      fullName: trimmedName,
+      phone: trimmedPhone,
+      email: trimmedEmail,
+      address: trimmedAddress,
+    };
 
-    if (editingCustomer) {
-      updateCustomer(editingCustomer.customerId, payload);
-      addToast('Customer profile updated successfully!', 'success');
-    } else {
-      addCustomer(payload);
-      addToast('New customer profile created!', 'success');
+    try {
+      if (editingCustomer) {
+        await updateCustomer(editingCustomer.customerId, payload);
+        addToast('Customer profile updated successfully!', 'success');
+      } else {
+        await addCustomer(payload);
+        addToast('New customer profile registered! Updated on dashboard.', 'success');
+      }
+      setModalOpen(false);
+    } catch (err) {
+      addToast(err.message || 'Failed to save customer.', 'error');
     }
-    setModalOpen(false);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (deleteId) {
-      deleteCustomer(deleteId);
-      addToast('Customer record deleted.', 'success');
-      setDeleteId(null);
+      try {
+        await deleteCustomer(deleteId);
+        addToast('Customer record deleted successfully.', 'success');
+      } catch (err) {
+        addToast(err.message || 'Failed to delete customer.', 'error');
+      } finally {
+        setDeleteId(null);
+      }
     }
   };
 
@@ -242,25 +284,29 @@ const CustomersPage = () => {
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">Email Address</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">Email Address *</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="input-field"
+              className={`input-field ${formErrors.email ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500' : ''}`}
               placeholder="e.g. customer@stitchmaster.com"
+              required
             />
+            {formErrors.email && <p className="text-xs text-rose-500 font-medium">{formErrors.email}</p>}
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">Residential Address</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">Residential Address *</label>
             <textarea
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               rows="3"
-              className="input-field"
+              className={`input-field ${formErrors.address ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500' : ''}`}
               placeholder="e.g. 12 Awolowo Road, Ikoyi, Lagos"
+              required
             ></textarea>
+            {formErrors.address && <p className="text-xs text-rose-500 font-medium">{formErrors.address}</p>}
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">

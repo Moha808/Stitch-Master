@@ -12,21 +12,21 @@ export const ROLES = {
 };
 
 export const MALE_MEASUREMENTS = [
-  { key: 'neck', label: 'Neck', unit: 'inches' },
-  { key: 'chest', label: 'Chest', unit: 'inches' },
-  { key: 'waist', label: 'Waist', unit: 'inches' },
-  { key: 'hip', label: 'Hip', unit: 'inches' },
-  { key: 'shoulder', label: 'Shoulder', unit: 'inches' },
-  { key: 'sleeveLength', label: 'Sleeve Length', unit: 'inches' },
-  { key: 'trouserLength', label: 'Trouser Length', unit: 'inches' },
+  { key: 'neck', label: 'Neck', unit: 'cm' },
+  { key: 'chest', label: 'Chest', unit: 'cm' },
+  { key: 'waist', label: 'Waist', unit: 'cm' },
+  { key: 'hip', label: 'Hip', unit: 'cm' },
+  { key: 'shoulder', label: 'Shoulder', unit: 'cm' },
+  { key: 'sleeveLength', label: 'Sleeve Length', unit: 'cm' },
+  { key: 'trouserLength', label: 'Trouser Length', unit: 'cm' },
 ];
 
 export const FEMALE_MEASUREMENTS = [
-  { key: 'bust', label: 'Bust', unit: 'inches' },
-  { key: 'waist', label: 'Waist', unit: 'inches' },
-  { key: 'hip', label: 'Hip', unit: 'inches' },
-  { key: 'shoulder', label: 'Shoulder', unit: 'inches' },
-  { key: 'sleeveLength', label: 'Sleeve Length', unit: 'inches' },
+  { key: 'bust', label: 'Bust', unit: 'cm' },
+  { key: 'waist', label: 'Waist', unit: 'cm' },
+  { key: 'hip', label: 'Hip', unit: 'cm' },
+  { key: 'shoulder', label: 'Shoulder', unit: 'cm' },
+  { key: 'sleeveLength', label: 'Sleeve Length', unit: 'cm' },
 ];
 
 export const FABRIC_TYPES = [
@@ -49,7 +49,7 @@ export const FABRIC_TYPES = [
 
 export const NAV_ITEMS = [
   {
-    path: '/',
+    path: '/dashboard',
     label: 'Dashboard',
     icon: 'HiHome',
     roles: [ROLES.ADMIN, ROLES.STAFF, ROLES.CUSTOMER],

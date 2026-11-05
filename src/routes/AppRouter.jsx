@@ -4,6 +4,7 @@ import ProtectedRoute from './ProtectedRoute';
 import MainLayout from '../components/layout/MainLayout';
 import LandingPage from '../pages/LandingPage';
 import LoginPage from '../pages/LoginPage';
+import AdminLoginPage from '../pages/AdminLoginPage';
 import DashboardPage from '../pages/DashboardPage';
 import CustomersPage from '../pages/CustomersPage';
 import CustomerDetailPage from '../pages/CustomerDetailPage';
@@ -22,6 +23,8 @@ const AppRouter = () => {
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/admin" element={<AdminLoginPage />} />
+        <Route path="/admin/login" element={<AdminLoginPage />} />
 
         {/* Protected Dashboard/App Routes */}
         <Route

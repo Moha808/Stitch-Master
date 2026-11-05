@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { HiUser, HiBuildingStorefront, HiUsers, HiShieldCheck, HiCog, HiPlus } from 'react-icons/hi2';
+import { HiUser, HiBuildingStorefront, HiUsers, HiShieldCheck, HiCog, HiPlus, HiTrash } from 'react-icons/hi2';
 import useAuth from '../hooks/useAuth';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
+import ConfirmDialog from '../components/common/ConfirmDialog';
 import { useToast } from '../contexts/ToastContext';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 const SettingsPage = () => {
@@ -45,6 +46,7 @@ const SettingsPage = () => {
 
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffEmail, setNewStaffEmail] = useState('');
+  const [deleteStaffId, setDeleteStaffId] = useState(null);
 
   const handleSaveProfile = (e) => {
     e.preventDefault();
@@ -56,11 +58,55 @@ const SettingsPage = () => {
     addToast('Business configurations updated.', 'success');
   };
 
-  const handleAddStaff = (e) => {
+  const handleAddStaff = async (e) => {
     e.preventDefault();
-    addToast('To add a new Staff member, they must first register an account. Then, change their role to "staff" in the Firebase Console.', 'info');
-    setNewStaffName('');
-    setNewStaffEmail('');
+    if (!newStaffName.trim() || !newStaffEmail.trim()) {
+      addToast('Please enter both staff name and email address.', 'warning');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newStaffEmail.trim())) {
+      addToast('Please enter a valid email address.', 'error');
+      return;
+    }
+
+    try {
+      const generatedStaffId = 'STF-' + Date.now().toString().slice(-6);
+      const newStaff = {
+        id: generatedStaffId,
+        name: newStaffName.trim(),
+        email: newStaffEmail.trim(),
+        role: 'staff',
+        status: 'Active',
+        createdAt: new Date().toISOString(),
+      };
+
+      // Optimistic update
+      setStaffList((prev) => [...prev, newStaff]);
+      await setDoc(doc(db, 'users', generatedStaffId), newStaff);
+
+      addToast(`Staff account for "${newStaff.name}" added successfully.`, 'success');
+      setNewStaffName('');
+      setNewStaffEmail('');
+    } catch (err) {
+      addToast(err.message || 'Failed to add staff account.', 'error');
+    }
+  };
+
+  const handleDeleteStaffConfirm = async () => {
+    if (deleteStaffId) {
+      try {
+        // Optimistic removal so it immediately disappears!
+        setStaffList((prev) => prev.filter((s) => s.id !== deleteStaffId));
+        await deleteDoc(doc(db, 'users', deleteStaffId));
+        addToast('Staff user account deleted successfully.', 'success');
+      } catch (err) {
+        addToast(err.message || 'Failed to delete user account.', 'error');
+      } finally {
+        setDeleteStaffId(null);
+      }
+    }
   };
 
   return (
@@ -238,7 +284,8 @@ const SettingsPage = () => {
                       <th className="py-2.5 px-4">Name</th>
                       <th className="py-2.5 px-4">Email</th>
                       <th className="py-2.5 px-4">Role</th>
-                      <th className="py-2.5 pl-4 text-right">Status</th>
+                      <th className="py-2.5 px-4 text-center">Status</th>
+                      <th className="py-2.5 pl-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -248,13 +295,31 @@ const SettingsPage = () => {
                         <td className="py-3 px-4 font-semibold text-gray-800 dark:text-slate-200">{s.name}</td>
                         <td className="py-3 px-4 text-gray-500 dark:text-slate-400">{s.email}</td>
                         <td className="py-3 px-4 capitalize font-medium text-gray-700 dark:text-slate-300">{s.role}</td>
-                        <td className="py-3 pl-4 text-right">
+                        <td className="py-3 px-4 text-center">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50">
                             {s.status}
                           </span>
                         </td>
+                        <td className="py-3 pl-4 text-right">
+                          {currentUser?.uid !== s.id && (
+                            <button
+                              onClick={() => setDeleteStaffId(s.id)}
+                              className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg transition-colors"
+                              title="Delete user account"
+                            >
+                              <HiTrash className="w-4 h-4" />
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
+                    {staffList.length === 0 && (
+                      <tr>
+                        <td colSpan="6" className="text-center py-6 text-xs text-gray-400 dark:text-slate-500">
+                          No staff accounts found.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -303,6 +368,15 @@ const SettingsPage = () => {
           )}
         </div>
       </div>
+
+      {/* Delete Staff Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteStaffId !== null}
+        onClose={() => setDeleteStaffId(null)}
+        onConfirm={handleDeleteStaffConfirm}
+        title="Delete Staff Account"
+        message="Are you sure you want to delete this staff user account? They will immediately lose access to the shop platform. This action is permanent."
+      />
     </div>
   );
 };
