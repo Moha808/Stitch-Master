@@ -1,6 +1,6 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 
 export const AuthContext = createContext(null);
@@ -10,37 +10,69 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let unsubUserDoc = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (unsubUserDoc) {
+        unsubUserDoc();
+        unsubUserDoc = null;
+      }
+
       if (user) {
-        try {
-          // Fetch user role from Firestore
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDocSnap = await getDoc(userDocRef);
-          
-          if (userDocSnap.exists()) {
-            setCurrentUser({ uid: user.uid, email: user.email, ...userDocSnap.data() });
-          } else {
-            // Fallback for newly created users without a Firestore doc
-            setCurrentUser({ uid: user.uid, email: user.email, role: 'admin', name: 'Admin' });
+        // Listen in real-time to the user document in Firestore
+        const userDocRef = doc(db, 'users', user.uid);
+        unsubUserDoc = onSnapshot(
+          userDocRef,
+          (userDocSnap) => {
+            if (userDocSnap.exists()) {
+              const userData = userDocSnap.data();
+              setCurrentUser({
+                uid: user.uid,
+                email: user.email,
+                name: userData.name || userData.fullName || user.displayName || 'User',
+                role: userData.role || 'customer',
+                customerId: userData.customerId || null,
+                ...userData,
+              });
+            } else {
+              // Safe fallback: new registrations start as 'customer' (NEVER admin!)
+              // Admin role is reserved solely for verified admin records
+              setCurrentUser({
+                uid: user.uid,
+                email: user.email,
+                name: user.displayName || user.email?.split('@')[0] || 'Customer',
+                role: 'customer',
+              });
+            }
+            setLoading(false);
+          },
+          (error) => {
+            console.error('Error fetching user data:', error);
+            setCurrentUser({
+              uid: user.uid,
+              email: user.email,
+              name: user.email?.split('@')[0] || 'Customer',
+              role: 'customer',
+            });
+            setLoading(false);
           }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-          setCurrentUser(null);
-        }
+        );
       } else {
         setCurrentUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubUserDoc) unsubUserDoc();
+      unsubscribeAuth();
+    };
   }, []);
 
   const login = async (email, password) => {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle setting the user and loading state
     } catch (error) {
       setLoading(false);
       throw new Error(error.message || 'Failed to login. Please check your credentials.');
@@ -51,7 +83,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await signOut(auth);
     } catch (error) {
-      console.error("Failed to logout:", error);
+      console.error('Failed to logout:', error);
     }
   };
 
@@ -66,19 +98,26 @@ export const AuthProvider = ({ children }) => {
     // Staff permissions
     if (isStaff) {
       const allowedActions = [
-        'view_customers', 'create_customers', 'edit_customers',
-        'view_measurements', 'create_measurements', 'edit_measurements',
-        'view_orders', 'create_orders', 'edit_orders', 'update_order_status',
-        'view_payments', 'create_payments', 'edit_payments'
+        'view_customers',
+        'create_customers',
+        'edit_customers',
+        'view_measurements',
+        'create_measurements',
+        'edit_measurements',
+        'view_orders',
+        'create_orders',
+        'edit_orders',
+        'update_order_status',
+        'view_payments',
+        'create_payments',
+        'edit_payments',
       ];
       return allowedActions.includes(action);
     }
 
     // Customer permissions
     if (isCustomer) {
-      const allowedActions = [
-        'view_own_orders', 'view_own_payments', 'create_own_payments'
-      ];
+      const allowedActions = ['view_own_orders', 'view_own_payments', 'create_own_payments'];
       return allowedActions.includes(action);
     }
 
@@ -93,7 +132,7 @@ export const AuthProvider = ({ children }) => {
     isAdmin,
     isStaff,
     isCustomer,
-    hasPermission
+    hasPermission,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -106,3 +145,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+export default AuthContext;

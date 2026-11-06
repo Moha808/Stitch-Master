@@ -29,8 +29,10 @@ const ReportsPage = () => {
   const { theme } = useTheme();
 
   const [activeReportTab, setActiveReportTab] = useState('revenue'); // revenue, orders, customers
-  const [fromDate, setFromDate] = useState('2025-01-01');
-  const [toDate, setToDate] = useState('2026-06-15');
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const yearStartStr = useMemo(() => `${new Date().getFullYear()}-01-01`, []);
+  const [fromDate, setFromDate] = useState(yearStartStr);
+  const [toDate, setToDate] = useState(todayStr);
 
   // Filtered dataset based on dates
   const filteredData = useMemo(() => {

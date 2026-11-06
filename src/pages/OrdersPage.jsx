@@ -25,27 +25,35 @@ const OrdersPage = () => {
   const { isAdmin, isStaff, isCustomer, currentUser } = useAuth();
   const { addToast } = useToast();
 
-  // Filter orders if user role is customer
-  const filteredOrdersByRole = useMemo(() => {
-    if (isCustomer && currentUser) {
-      const userEmail = currentUser.email?.toLowerCase();
-      const userName = currentUser.name?.toLowerCase() || currentUser.fullName?.toLowerCase();
-      
-      // Find all customer profiles that belong to this user (by email or exact name match)
-      const matchingCustomerIds = customers
-        .filter(c => 
-          (c.email && c.email.toLowerCase() === userEmail) || 
-          (c.fullName && userName && c.fullName.toLowerCase() === userName)
-        )
-        .map(c => c.customerId);
+  // Customer identification for strict customer data isolation
+  const matchedCustomer = useMemo(() => {
+    if (!isCustomer || !currentUser) return null;
+    const userEmail = currentUser.email?.trim().toLowerCase();
+    const userCustId = currentUser.customerId;
+    return (
+      customers.find(
+        (c) =>
+          (userCustId && (c.customerId === userCustId || c.id === userCustId)) ||
+          (c.email && userEmail && c.email.trim().toLowerCase() === userEmail)
+      ) || null
+    );
+  }, [customers, currentUser, isCustomer]);
 
-      return orders.filter((o) => 
-        matchingCustomerIds.includes(o.customerId) ||
-        (o.customerEmail && o.customerEmail.toLowerCase() === userEmail)
+  const activeCustomerId = matchedCustomer?.customerId || currentUser?.customerId;
+
+  // Filter orders strictly if user role is customer
+  const filteredOrdersByRole = useMemo(() => {
+    if (isCustomer) {
+      if (!activeCustomerId && !currentUser?.email) return [];
+      const userEmail = currentUser?.email?.trim().toLowerCase();
+      return orders.filter(
+        (o) =>
+          (activeCustomerId && o.customerId === activeCustomerId) ||
+          (userEmail && o.customerEmail && o.customerEmail.trim().toLowerCase() === userEmail)
       );
     }
     return orders;
-  }, [orders, customers, currentUser, isCustomer]);
+  }, [orders, activeCustomerId, currentUser, isCustomer]);
 
   // States
   const [activeTab, setActiveTab] = useState('All'); // All, Pending, In Progress, Ready, Delivered

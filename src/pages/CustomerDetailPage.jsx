@@ -226,7 +226,7 @@ const CustomerDetailPage = () => {
     setMeasurementModalOpen(true);
   };
 
-  const handleSaveMeasurement = (e) => {
+  const handleSaveMeasurement = async (e) => {
     e.preventDefault();
     const payload = {
       customerId: id,
@@ -240,14 +240,19 @@ const CustomerDetailPage = () => {
       bust: gender === 'female' ? Number(measForm.bust) || 0 : 0,
     };
 
-    if (editingMeasId) {
-      updateMeasurement(editingMeasId, payload);
-      addToast('Measurement record updated.', 'success');
-    } else {
-      addMeasurement(payload);
-      addToast('New measurement record logged.', 'success');
+    try {
+      if (editingMeasId) {
+        await updateMeasurement(editingMeasId, payload);
+        addToast('Measurement record updated.', 'success');
+      } else {
+        await addMeasurement(payload);
+        addToast('New measurement record logged successfully.', 'success');
+      }
+      setMeasurementModalOpen(false);
+    } catch (err) {
+      console.error('Error saving measurement:', err);
+      addToast(err.message || 'Failed to save measurement.', 'error');
     }
-    setMeasurementModalOpen(false);
   };
 
   const handlePrintMeasurements = () => {
@@ -465,7 +470,7 @@ const CustomerDetailPage = () => {
                       <div>
                         <span className="text-xs font-bold text-gray-700 dark:text-slate-350">{formatDate(m.createdAt)}</span>
                         <span className="text-[10px] text-gray-400 dark:text-slate-550 block mt-0.5">
-                          {m.bust > 0 ? 'Female (Bust: ' + m.bust + '")' : 'Male (Neck: ' + m.neck + '")'}
+                          {m.bust > 0 ? 'Female (Bust: ' + m.bust + ' cm)' : 'Male (Neck: ' + m.neck + ' cm)'}
                         </span>
                       </div>
                       {!isCustomer && (

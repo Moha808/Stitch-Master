@@ -67,17 +67,35 @@ export const CustomerProvider = ({ children }) => {
 
   const deleteCustomer = async (id) => {
     try {
-      // 1. Optimistically remove from state immediately so it disappears from UI
+      // 1. Locate the customer record to gather details like email
+      const customerToDelete = customers.find((c) => c.customerId === id || c.id === id);
+
+      // 2. Optimistically remove from state immediately so it disappears from UI
       setCustomers((prev) => prev.filter((c) => c.customerId !== id && c.id !== id));
 
-      // 2. Delete by primary doc id
-      await deleteDoc(doc(db, 'customers', id));
+      // 3. Delete by primary doc id in customers collection
+      try {
+        await deleteDoc(doc(db, 'customers', id));
+      } catch (e) {
+        console.warn('Doc ID delete fallback:', e);
+      }
 
-      // 3. Fallback: also delete any matching document where field customerId == id
-      const q = query(collection(db, 'customers'), where('customerId', '==', id));
-      const querySnap = await getDocs(q);
-      const deletePromises = querySnap.docs.map((d) => deleteDoc(d.ref));
-      await Promise.all(deletePromises);
+      // 4. Fallback: also delete any matching document where field customerId == id
+      const qCust = query(collection(db, 'customers'), where('customerId', '==', id));
+      const querySnap = await getDocs(qCust);
+      await Promise.all(querySnap.docs.map((d) => deleteDoc(d.ref)));
+
+      // 5. CRITICAL: Also delete from 'users' collection if this customer has a linked user account in Firebase
+      if (customerToDelete?.email) {
+        const qUsers = query(collection(db, 'users'), where('email', '==', customerToDelete.email));
+        const userSnap = await getDocs(qUsers);
+        await Promise.all(userSnap.docs.map((d) => deleteDoc(d.ref)));
+      }
+      if (customerToDelete?.customerId) {
+        const qUsersByCustId = query(collection(db, 'users'), where('customerId', '==', customerToDelete.customerId));
+        const userSnap2 = await getDocs(qUsersByCustId);
+        await Promise.all(userSnap2.docs.map((d) => deleteDoc(d.ref)));
+      }
     } catch (error) {
       console.error('Error deleting customer:', error);
       throw error;
@@ -85,7 +103,8 @@ export const CustomerProvider = ({ children }) => {
   };
 
   const getCustomer = (id) => {
-    return customers.find((c) => c.customerId === id);
+    if (!id) return null;
+    return customers.find((c) => c.customerId === id || c.id === id);
   };
 
   const searchCustomers = (query) => {
@@ -93,9 +112,9 @@ export const CustomerProvider = ({ children }) => {
     const lowerQuery = query.toLowerCase();
     return customers.filter(
       (c) =>
-        c.fullName.toLowerCase().includes(lowerQuery) ||
-        c.phone.includes(lowerQuery) ||
-        c.email.toLowerCase().includes(lowerQuery)
+        (c.fullName && c.fullName.toLowerCase().includes(lowerQuery)) ||
+        (c.phone && c.phone.includes(lowerQuery)) ||
+        (c.email && c.email.toLowerCase().includes(lowerQuery))
     );
   };
 

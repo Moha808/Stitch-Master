@@ -50,20 +50,27 @@ const LoginPage = () => {
         const user = userCredential.user;
         const timestamp = new Date().toISOString();
         
-        // Save to Firestore users collection
+        // Generate matching customer ID
+        const customerId = 'CUS-' + Date.now().toString().slice(-6) + Math.random().toString(36).substring(2, 6);
+        const cleanEmail = email.trim().toLowerCase();
+        const cleanName = name.trim();
+
+        // Save to Firestore users collection with customerId and customer role
         await setDoc(doc(db, 'users', user.uid), {
-          name,
-          email,
-          role: 'customer', // Public registration defaults to customer
+          uid: user.uid,
+          name: cleanName,
+          email: cleanEmail,
+          role: 'customer',
+          customerId: customerId,
           createdAt: timestamp
         });
 
-        // Also create a corresponding customer profile so Staff/Admin can place orders for them
-        const customerId = 'CUS-' + Date.now().toString().slice(-6) + Math.random().toString(36).substring(2, 6);
+        // Also create a corresponding customer profile so Staff/Admin can manage specs and place orders for them
         await setDoc(doc(db, 'customers', customerId), {
+          id: customerId,
           customerId,
-          fullName: name,
-          email: email,
+          fullName: cleanName,
+          email: cleanEmail,
           phone: '',
           address: '',
           createdAt: timestamp

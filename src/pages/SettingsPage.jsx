@@ -5,8 +5,10 @@ import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import { useToast } from '../contexts/ToastContext';
-import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { db, firebaseConfig } from '../config/firebase';
 
 const SettingsPage = () => {
   const { currentUser } = useAuth();
@@ -28,15 +30,16 @@ const SettingsPage = () => {
   const [staffList, setStaffList] = useState([]);
 
   useEffect(() => {
-    // Fetch users who are staff
+    // Fetch users who are staff or admin
     const q = query(collection(db, 'users'), where('role', 'in', ['staff', 'admin']));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const users = snapshot.docs.map((doc) => ({
         id: doc.id,
+        uid: doc.id,
         name: doc.data().name || doc.data().fullName || 'Unnamed Staff',
         email: doc.data().email,
         role: doc.data().role,
-        status: 'Active', // Mocking status since auth doesn't easily expose 'disabled' without admin SDK
+        status: doc.data().status || 'Active',
       }));
       setStaffList(users);
     });
@@ -46,6 +49,8 @@ const SettingsPage = () => {
 
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffEmail, setNewStaffEmail] = useState('');
+  const [newStaffPassword, setNewStaffPassword] = useState('');
+  const [isCreatingStaff, setIsCreatingStaff] = useState(false);
   const [deleteStaffId, setDeleteStaffId] = useState(null);
 
   const handleSaveProfile = (e) => {
@@ -60,48 +65,91 @@ const SettingsPage = () => {
 
   const handleAddStaff = async (e) => {
     e.preventDefault();
-    if (!newStaffName.trim() || !newStaffEmail.trim()) {
-      addToast('Please enter both staff name and email address.', 'warning');
+    const cleanName = newStaffName.trim();
+    const cleanEmail = newStaffEmail.trim().toLowerCase();
+    const cleanPassword = newStaffPassword.trim();
+
+    if (!cleanName || !cleanEmail || !cleanPassword) {
+      addToast('Please enter staff name, email, and a login password.', 'warning');
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newStaffEmail.trim())) {
+    if (!emailRegex.test(cleanEmail)) {
       addToast('Please enter a valid email address.', 'error');
       return;
     }
 
+    if (cleanPassword.length < 6) {
+      addToast('Password must be at least 6 characters long.', 'error');
+      return;
+    }
+
+    setIsCreatingStaff(true);
+
     try {
-      const generatedStaffId = 'STF-' + Date.now().toString().slice(-6);
-      const newStaff = {
-        id: generatedStaffId,
-        name: newStaffName.trim(),
-        email: newStaffEmail.trim(),
+      // Use secondary Firebase App instance so the current Admin session is NEVER logged out!
+      const secondaryApp =
+        getApps().find((app) => app.name === 'SecondaryAuth') ||
+        initializeApp(firebaseConfig, 'SecondaryAuth');
+      const secondaryAuth = getAuth(secondaryApp);
+
+      // Create official Firebase Authentication credential for the staff
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, cleanEmail, cleanPassword);
+      const staffUser = userCredential.user;
+
+      // Immediately sign out secondary auth so it doesn't linger
+      await signOut(secondaryAuth);
+
+      const newStaffDoc = {
+        id: staffUser.uid,
+        uid: staffUser.uid,
+        name: cleanName,
+        email: cleanEmail,
         role: 'staff',
         status: 'Active',
         createdAt: new Date().toISOString(),
       };
 
       // Optimistic update
-      setStaffList((prev) => [...prev, newStaff]);
-      await setDoc(doc(db, 'users', generatedStaffId), newStaff);
+      setStaffList((prev) => [...prev, newStaffDoc]);
 
-      addToast(`Staff account for "${newStaff.name}" added successfully.`, 'success');
+      // Write directly to Firestore 'users' collection with the Firebase Auth UID
+      await setDoc(doc(db, 'users', staffUser.uid), newStaffDoc);
+
+      addToast(`Staff account for "${cleanName}" created! Staff can now log in.`, 'success');
       setNewStaffName('');
       setNewStaffEmail('');
+      setNewStaffPassword('');
     } catch (err) {
+      console.error('Error creating staff account:', err);
       addToast(err.message || 'Failed to add staff account.', 'error');
+    } finally {
+      setIsCreatingStaff(false);
     }
   };
 
   const handleDeleteStaffConfirm = async () => {
     if (deleteStaffId) {
       try {
-        // Optimistic removal so it immediately disappears!
+        const staffToDelete = staffList.find((s) => s.id === deleteStaffId);
+
+        // 1. Optimistic removal so it immediately disappears from the UI
         setStaffList((prev) => prev.filter((s) => s.id !== deleteStaffId));
+
+        // 2. Delete primary document in Firestore 'users'
         await deleteDoc(doc(db, 'users', deleteStaffId));
-        addToast('Staff user account deleted successfully.', 'success');
+
+        // 3. Fallback: also delete by email in users collection if exists
+        if (staffToDelete?.email) {
+          const qEmail = query(collection(db, 'users'), where('email', '==', staffToDelete.email));
+          const snap = await getDocs(qEmail);
+          await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+        }
+
+        addToast('Staff user account deleted successfully from database.', 'success');
       } catch (err) {
+        console.error('Error deleting staff:', err);
         addToast(err.message || 'Failed to delete user account.', 'error');
       } finally {
         setDeleteStaffId(null);
@@ -118,8 +166,8 @@ const SettingsPage = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* Navigation Sidebar Panel */}
-        <div className="space-y-1.5 md:col-span-1">
+        {/* Navigation Sidebar Panel with responsive mobile grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-1 gap-2 md:col-span-1">
           {[
             { id: 'profile', label: 'Admin Profile', icon: HiUser },
             { id: 'shop', label: 'Business Profile', icon: HiBuildingStorefront },
@@ -132,14 +180,14 @@ const SettingsPage = () => {
               <button
                 key={item.id}
                 onClick={() => setActiveSubTab(item.id)}
-                className={`flex items-center gap-3 w-full px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
+                className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold rounded-xl transition-all ${
                   active
                     ? 'bg-primary-600 text-white shadow-glow'
-                    : 'text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800/50 hover:text-gray-700 dark:hover:text-slate-200'
+                    : 'text-gray-500 dark:text-slate-400 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 hover:bg-gray-100 dark:hover:bg-slate-800/50 hover:text-gray-700 dark:hover:text-slate-200'
                 }`}
               >
-                <Icon className="w-5 h-5 shrink-0" />
-                <span>{item.label}</span>
+                <Icon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                <span className="truncate">{item.label}</span>
               </button>
             );
           })}
@@ -173,7 +221,9 @@ const SettingsPage = () => {
                     onChange={(e) => setProfileEmail(e.target.value)}
                     className="input-field"
                     required
+                    disabled
                   />
+                  <p className="text-[11px] text-gray-400 dark:text-slate-500">Owner email is bound to root Firebase instance.</p>
                 </div>
                 <Button type="submit" variant="primary">
                   Save Changes
@@ -185,13 +235,13 @@ const SettingsPage = () => {
           {activeSubTab === 'shop' && (
             <Card className="p-6 border-gray-100/80 shadow-md transition-colors">
               <div className="border-b border-gray-100 dark:border-slate-800 pb-4 mb-6 transition-colors">
-                <h3 className="text-lg font-bold font-heading text-gray-800 dark:text-white">Business Details</h3>
-                <p className="text-xs text-gray-400 dark:text-slate-500">Configure parameters printed on receipts and invoices</p>
+                <h3 className="text-lg font-bold font-heading text-gray-800 dark:text-white">Business Brand Profile</h3>
+                <p className="text-xs text-gray-400 dark:text-slate-500">Information printed on customer invoices and receipts</p>
               </div>
 
               <form onSubmit={handleSaveShop} className="space-y-4 max-w-lg">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">Shop / Boutique Name</label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">Business / Fashion House Name</label>
                   <input
                     type="text"
                     value={shopName}
@@ -201,7 +251,7 @@ const SettingsPage = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">Phone Hotline</label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">Official Phone Number</label>
                   <input
                     type="text"
                     value={shopPhone}
@@ -211,17 +261,17 @@ const SettingsPage = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">Office / Physical Address</label>
-                  <textarea
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">Studio Address</label>
+                  <input
+                    type="text"
                     value={shopAddress}
                     onChange={(e) => setShopAddress(e.target.value)}
-                    rows="3"
                     className="input-field"
                     required
-                  ></textarea>
+                  />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">Currency Symbol</label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">Default Currency</label>
                   <select
                     value={currencySymbol}
                     onChange={(e) => setCurrencySymbol(e.target.value)}
@@ -244,43 +294,56 @@ const SettingsPage = () => {
             <Card className="p-6 border-gray-100/80 shadow-md transition-colors">
               <div className="border-b border-gray-100 dark:border-slate-800 pb-4 mb-6 transition-colors">
                 <h3 className="text-lg font-bold font-heading text-gray-800 dark:text-white">Staff Credentials Log</h3>
-                <p className="text-xs text-gray-400 dark:text-slate-500">Review staff users or register secondary accounts</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">Create login credentials for shop tailors and managers</p>
               </div>
 
-              {/* Add staff form */}
-              <form onSubmit={handleAddStaff} className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 items-end p-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-100 dark:border-slate-700 transition-colors">
+              {/* Add staff form with password field and responsive columns */}
+              <form onSubmit={handleAddStaff} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 items-end p-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-100 dark:border-slate-700 transition-colors">
                 <div className="space-y-1 text-xs">
-                  <label className="font-semibold text-gray-500 dark:text-slate-400">Staff Name</label>
+                  <label className="font-semibold text-gray-500 dark:text-slate-400">Staff Full Name</label>
                   <input
                     type="text"
                     value={newStaffName}
                     onChange={(e) => setNewStaffName(e.target.value)}
                     placeholder="e.g. Zubair Ibrahim"
-                    className="input-field py-1.5"
+                    className="input-field py-2"
+                    required
                   />
                 </div>
                 <div className="space-y-1 text-xs">
-                  <label className="font-semibold text-gray-500 dark:text-slate-400">Email Address</label>
+                  <label className="font-semibold text-gray-500 dark:text-slate-400">Staff Login Email</label>
                   <input
                     type="email"
                     value={newStaffEmail}
                     onChange={(e) => setNewStaffEmail(e.target.value)}
                     placeholder="e.g. zubair@stitchmaster.com"
-                    className="input-field py-1.5"
+                    className="input-field py-2"
+                    required
                   />
                 </div>
-                <Button type="submit" variant="primary" className="py-2.5">
+                <div className="space-y-1 text-xs">
+                  <label className="font-semibold text-gray-500 dark:text-slate-400">Set Login Password</label>
+                  <input
+                    type="password"
+                    value={newStaffPassword}
+                    onChange={(e) => setNewStaffPassword(e.target.value)}
+                    placeholder="Min. 6 characters"
+                    className="input-field py-2"
+                    required
+                  />
+                </div>
+                <Button type="submit" variant="primary" disabled={isCreatingStaff} className="py-2.5 h-[42px] justify-center">
                   <HiPlus className="w-4 h-4" />
-                  Add Staff
+                  {isCreatingStaff ? 'Creating...' : 'Create Account'}
                 </Button>
               </form>
 
               {/* Staff list table */}
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm">
+                <table className="w-full text-left border-collapse text-sm min-w-[550px]">
                   <thead>
                     <tr className="border-b border-gray-100 dark:border-slate-800 text-xs text-gray-400 dark:text-slate-500 uppercase transition-colors">
-                      <th className="py-2.5 pr-4">Staff ID</th>
+                      <th className="py-2.5 pr-4">Staff UID</th>
                       <th className="py-2.5 px-4">Name</th>
                       <th className="py-2.5 px-4">Email</th>
                       <th className="py-2.5 px-4">Role</th>
@@ -291,10 +354,14 @@ const SettingsPage = () => {
                   <tbody>
                     {staffList.map((s) => (
                       <tr key={s.id} className="border-b border-gray-50 dark:border-slate-800/50 last:border-b-0 hover:bg-gray-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="py-3 pr-4 font-mono text-xs text-gray-500 dark:text-slate-400">{s.id}</td>
+                        <td className="py-3 pr-4 font-mono text-xs text-gray-500 dark:text-slate-400 truncate max-w-[120px]">{s.id}</td>
                         <td className="py-3 px-4 font-semibold text-gray-800 dark:text-slate-200">{s.name}</td>
                         <td className="py-3 px-4 text-gray-500 dark:text-slate-400">{s.email}</td>
-                        <td className="py-3 px-4 capitalize font-medium text-gray-700 dark:text-slate-300">{s.role}</td>
+                        <td className="py-3 px-4 capitalize font-medium text-gray-700 dark:text-slate-300">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${s.role === 'admin' ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-400' : 'bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-400'}`}>
+                            {s.role}
+                          </span>
+                        </td>
                         <td className="py-3 px-4 text-center">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50">
                             {s.status}
@@ -305,7 +372,7 @@ const SettingsPage = () => {
                             <button
                               onClick={() => setDeleteStaffId(s.id)}
                               className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg transition-colors"
-                              title="Delete user account"
+                              title="Delete staff account"
                             >
                               <HiTrash className="w-4 h-4" />
                             </button>
@@ -329,39 +396,22 @@ const SettingsPage = () => {
           {activeSubTab === 'security' && (
             <Card className="p-6 border-gray-100/80 shadow-md transition-colors">
               <div className="border-b border-gray-100 dark:border-slate-800 pb-4 mb-6 transition-colors">
-                <h3 className="text-lg font-bold font-heading text-gray-800 dark:text-white">Security & Sign-in parameters</h3>
-                <p className="text-xs text-gray-400 dark:text-slate-500">Configure parameters for app-wide security policy</p>
+                <h3 className="text-lg font-bold font-heading text-gray-800 dark:text-white">Security & Permissions</h3>
+                <p className="text-xs text-gray-400 dark:text-slate-500">Role-Based Access Control and authentication policies</p>
               </div>
 
-              <div className="space-y-4 max-w-lg text-sm">
-                <div className="p-4 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 rounded-xl text-indigo-800 dark:text-indigo-300 transition-colors">
-                  <p className="font-bold flex items-center gap-1.5">
-                    <HiShieldCheck className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
-                    Authentication Protocol Active
-                  </p>
-                  <p className="text-xs mt-1 leading-relaxed">
-                    StitchMaster uses tokenized local user authentication with role-based policies. Route filters are active on all sensitive sections.
+              <div className="space-y-4 max-w-lg">
+                <div className="p-4 rounded-xl border border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/30">
+                  <h4 className="text-sm font-bold text-gray-800 dark:text-white mb-1">Role Hierarchy Enforcement</h4>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    Administrators possess full CRUD privileges, settings configurations, and reports. Staff members can log body measurements, orders, and record payments, but cannot delete records or alter settings. Customers have isolated views showing only their individual orders, payments, and specs.
                   </p>
                 </div>
-                <div className="border border-gray-100 dark:border-slate-800 rounded-xl p-4 space-y-3 transition-colors">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <span className="font-bold text-gray-800 dark:text-slate-200 block">Autosave Database Cache</span>
-                      <span className="text-xs text-gray-400 dark:text-slate-500 mt-0.5 block">Store states in client storage</span>
-                    </div>
-                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-md">
-                      Enabled
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center border-t border-gray-50 dark:border-slate-800/50 pt-3 transition-colors">
-                    <div>
-                      <span className="font-bold text-gray-800 dark:text-slate-200 block">Session Expiration Timeout</span>
-                      <span className="text-xs text-gray-400 dark:text-slate-500 mt-0.5 block">Force login after inactivity duration</span>
-                    </div>
-                    <span className="text-xs font-bold text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-slate-800 px-2 py-1 rounded-md">
-                      24 Hours
-                    </span>
-                  </div>
+                <div className="p-4 rounded-xl border border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/30">
+                  <h4 className="text-sm font-bold text-gray-800 dark:text-white mb-1">Firestore Document Security</h4>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    Authentication rules verify `auth.uid` against the `users` collection to prevent cross-account tampering.
+                  </p>
                 </div>
               </div>
             </Card>
@@ -369,13 +419,15 @@ const SettingsPage = () => {
         </div>
       </div>
 
-      {/* Delete Staff Confirmation Dialog */}
+      {/* Delete Staff Confirmation Modal */}
       <ConfirmDialog
-        isOpen={deleteStaffId !== null}
-        onClose={() => setDeleteStaffId(null)}
-        onConfirm={handleDeleteStaffConfirm}
+        isOpen={Boolean(deleteStaffId)}
         title="Delete Staff Account"
-        message="Are you sure you want to delete this staff user account? They will immediately lose access to the shop platform. This action is permanent."
+        message="Are you sure you want to delete this staff user account from the system? The user will no longer be able to log in. This action is permanent."
+        confirmText="Delete Account"
+        variant="danger"
+        onConfirm={handleDeleteStaffConfirm}
+        onCancel={() => setDeleteStaffId(null)}
       />
     </div>
   );

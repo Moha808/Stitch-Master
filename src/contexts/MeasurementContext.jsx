@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { collection, onSnapshot, doc, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, query } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { generateId } from '../utils/formatters';
 
@@ -9,13 +9,22 @@ export const MeasurementProvider = ({ children }) => {
   const [measurements, setMeasurements] = useState([]);
 
   useEffect(() => {
-    const q = query(collection(db, 'measurements'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(d => d.data());
-      setMeasurements(data);
-    }, (error) => {
-      console.error("Error fetching measurements:", error);
-    });
+    // Avoid composite index requirement by querying without orderBy and sorting in memory
+    const q = query(collection(db, 'measurements'));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const data = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+        data.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        setMeasurements(data);
+      },
+      (error) => {
+        console.error('Error fetching measurements:', error);
+      }
+    );
 
     return () => unsubscribe();
   }, []);
@@ -24,24 +33,40 @@ export const MeasurementProvider = ({ children }) => {
     const measurementId = generateId('MEA');
     const newMeasurement = {
       ...measurementData,
+      id: measurementId,
       measurementId,
       createdAt: new Date().toISOString(),
     };
     try {
+      // Optimistic state update so UI updates immediately
+      setMeasurements((prev) => [newMeasurement, ...prev.filter((m) => m.measurementId !== measurementId)]);
       await setDoc(doc(db, 'measurements', measurementId), newMeasurement);
       return newMeasurement;
     } catch (error) {
-      console.error("Error adding measurement:", error);
+      console.error('Error adding measurement:', error);
       throw error;
     }
   };
 
   const updateMeasurement = async (id, measurementData) => {
     try {
+      setMeasurements((prev) =>
+        prev.map((m) => (m.measurementId === id || m.id === id ? { ...m, ...measurementData } : m))
+      );
       const docRef = doc(db, 'measurements', id);
       await updateDoc(docRef, measurementData);
     } catch (error) {
-      console.error("Error updating measurement:", error);
+      console.error('Error updating measurement:', error);
+      throw error;
+    }
+  };
+
+  const deleteMeasurement = async (id) => {
+    try {
+      setMeasurements((prev) => prev.filter((m) => m.measurementId !== id && m.id !== id));
+      await deleteDoc(doc(db, 'measurements', id));
+    } catch (error) {
+      console.error('Error deleting measurement:', error);
       throw error;
     }
   };
@@ -49,7 +74,7 @@ export const MeasurementProvider = ({ children }) => {
   const getMeasurementsByCustomer = (customerId) => {
     return measurements
       .filter((m) => m.customerId === customerId)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   };
 
   const getLatestMeasurement = (customerId) => {
@@ -63,6 +88,7 @@ export const MeasurementProvider = ({ children }) => {
         measurements,
         addMeasurement,
         updateMeasurement,
+        deleteMeasurement,
         getMeasurementsByCustomer,
         getLatestMeasurement,
       }}

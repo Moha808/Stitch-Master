@@ -63,7 +63,8 @@ const TopNavbar = ({ onMenuToggle, pageTitle }) => {
       <div className="flex items-center gap-4">
         <button
           onClick={onMenuToggle}
-          className="p-1 text-gray-500 dark:text-slate-400 rounded-lg md:hidden hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-700 dark:hover:text-slate-200 transition-colors focus:outline-none"
+          className="p-1.5 text-gray-500 dark:text-slate-400 rounded-lg lg:hidden hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-700 dark:hover:text-slate-200 transition-colors focus:outline-none"
+          aria-label="Toggle navigation menu"
         >
           <HiBars3 className="w-6 h-6" />
         </button>

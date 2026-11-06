@@ -47,57 +47,62 @@ const PaymentsPage = () => {
     return map;
   }, [orders]);
 
-  // Financial aggregates
-  const financialTotals = useMemo(() => {
-    // Total Revenue is sum of totalCost of all orders
-    const totalRevenue = orders.reduce((sum, o) => sum + o.totalCost, 0);
+  // Customer identification for strict customer data isolation
+  const matchedCustomer = useMemo(() => {
+    if (!isCustomer || !currentUser) return null;
+    const userEmail = currentUser.email?.trim().toLowerCase();
+    const userCustId = currentUser.customerId;
+    return (
+      customers.find(
+        (c) =>
+          (userCustId && (c.customerId === userCustId || c.id === userCustId)) ||
+          (c.email && userEmail && c.email.trim().toLowerCase() === userEmail)
+      ) || null
+    );
+  }, [customers, currentUser, isCustomer]);
 
-    // Total Collected is sum of amountPaid in all payment entries
-    const totalCollected = payments.reduce((sum, p) => sum + p.amountPaid, 0);
+  const activeCustomerId = matchedCustomer?.customerId || currentUser?.customerId;
 
-    // Outstanding Balance is totalRevenue - totalCollected
-    const outstanding = Math.max(0, totalRevenue - totalCollected);
-
-    return { totalRevenue, totalCollected, outstanding };
-  }, [orders, payments]);
-
-  // Filter orders and payments if customer role
+  // Filter orders strictly if customer role
   const dashboardOrders = useMemo(() => {
-    if (isCustomer && currentUser) {
-      const userEmail = currentUser.email?.toLowerCase();
-      const userName = currentUser.name?.toLowerCase() || currentUser.fullName?.toLowerCase();
-      
-      const matchingCustomerIds = customers
-        .filter(c => 
-          (c.email && c.email.toLowerCase() === userEmail) || 
-          (c.fullName && userName && c.fullName.toLowerCase() === userName)
-        )
-        .map(c => c.customerId);
-
-      return orders.filter((o) => 
-        matchingCustomerIds.includes(o.customerId) ||
-        (o.customerEmail && o.customerEmail.toLowerCase() === userEmail)
+    if (isCustomer) {
+      if (!activeCustomerId && !currentUser?.email) return [];
+      const userEmail = currentUser?.email?.trim().toLowerCase();
+      return orders.filter(
+        (o) =>
+          (activeCustomerId && o.customerId === activeCustomerId) ||
+          (userEmail && o.customerEmail && o.customerEmail.trim().toLowerCase() === userEmail)
       );
     }
     return orders;
-  }, [orders, customers, currentUser, isCustomer]);
+  }, [orders, activeCustomerId, currentUser, isCustomer]);
 
   const dashboardPayments = useMemo(() => {
     if (isCustomer) {
-      const customer = customers.find((c) => c.email?.toLowerCase() === currentUser?.email?.toLowerCase());
-      if (!customer) return [];
-      const customerOrderIds = dashboardOrders.map(o => o.orderId);
-      return payments.filter(p => customerOrderIds.includes(p.orderId));
+      const customerOrderIds = dashboardOrders.map((o) => o.orderId);
+      return payments.filter((p) => customerOrderIds.includes(p.orderId));
     }
     return payments;
-  }, [payments, dashboardOrders, customers, currentUser, isCustomer]);
+  }, [payments, dashboardOrders, isCustomer]);
+
+  // Financial aggregates calculated strictly for the authenticated actor
+  const financialTotals = useMemo(() => {
+    const targetOrders = isCustomer ? dashboardOrders : orders;
+    const targetPayments = isCustomer ? dashboardPayments : payments;
+
+    const totalRevenue = targetOrders.reduce((sum, o) => sum + (Number(o.totalCost) || 0), 0);
+    const totalCollected = targetPayments.reduce((sum, p) => sum + (Number(p.amountPaid) || 0), 0);
+    const outstanding = Math.max(0, totalRevenue - totalCollected);
+
+    return { totalRevenue, totalCollected, outstanding };
+  }, [orders, payments, dashboardOrders, dashboardPayments, isCustomer]);
 
   // Orders that are eligible for payment (have outstanding balance > 0)
   const eligibleOrdersForPayment = useMemo(() => {
     return dashboardOrders
       .map((order) => {
         const paid = getAmountPaidForOrder(order.orderId);
-        const bal = Math.max(0, order.totalCost - paid);
+        const bal = Math.max(0, (Number(order.totalCost) || 0) - paid);
         return {
           ...order,
           amountPaidSoFar: paid,
@@ -105,7 +110,7 @@ const PaymentsPage = () => {
         };
       })
       .filter((o) => o.remainingBalance > 0);
-  }, [orders, getAmountPaidForOrder]);
+  }, [dashboardOrders, getAmountPaidForOrder]);
 
   const selectedOrderDetails = useMemo(() => {
     if (!selectedOrderId) return null;
@@ -115,7 +120,7 @@ const PaymentsPage = () => {
     return {
       ...order,
       paidSoFar: paid,
-      balance: Math.max(0, order.totalCost - paid),
+      balance: Math.max(0, (Number(order.totalCost) || 0) - paid),
     };
   }, [selectedOrderId, orderMap, getAmountPaidForOrder]);
 
@@ -130,7 +135,7 @@ const PaymentsPage = () => {
         styleDescription: order ? order.styleDescription : '',
       };
     });
-  }, [payments, orderMap, customerMap]);
+  }, [dashboardPayments, orderMap, customerMap]);
 
   const { searchQuery, setSearchQuery, filteredItems } = useSearch(searchablePayments, [
     'paymentId',

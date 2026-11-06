@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useContext } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   HiScissors,
@@ -48,55 +48,55 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
       {/* Mobile overlay backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-300"
           onClick={onClose}
+          aria-hidden="true"
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar drawer */}
       <aside
         className={[
           'fixed top-0 left-0 h-full bg-white dark:bg-sidebar border-r border-slate-200 dark:border-slate-800/80 z-50',
-          'flex flex-col shadow-sidebar transition-all duration-300 ease-in-out',
+          'flex flex-col shadow-2xl lg:shadow-sidebar transition-all duration-300 ease-in-out',
           // Mobile: slide in/out
           isOpen ? 'translate-x-0' : '-translate-x-full',
-          // Desktop: always visible
+          // Desktop: always visible at 0
           'lg:translate-x-0',
-          // Width
+          // Width: on mobile always 72 (288px) or 64 (256px), on desktop depends on collapsed
           collapsed ? 'lg:w-20' : 'lg:w-64',
-          'w-64',
+          'w-72 sm:w-64',
         ].join(' ')}
       >
-        {/* Brand / Logo */}
+        {/* Brand / Logo Header */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-slate-200 dark:border-slate-800/60 flex-shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-glow">
               <HiScissors className="w-5 h-5 text-white" />
             </div>
-            {!collapsed && (
-              <div className="flex flex-col min-w-0">
-                <span className="text-base font-heading font-bold text-accent-500 dark:text-accent-400 tracking-wide truncate">
-                  StitchMaster
-                </span>
-                <span className="text-[10px] text-slate-400 dark:text-sidebar-text tracking-widest uppercase">
-                  Tailoring
-                </span>
-              </div>
-            )}
+            {/* Show brand name on mobile always, on desktop only if not collapsed */}
+            <div className={`flex flex-col min-w-0 ${collapsed ? 'lg:hidden' : 'flex'}`}>
+              <span className="text-base font-heading font-bold text-accent-500 dark:text-accent-400 tracking-wide truncate">
+                StitchMaster
+              </span>
+              <span className="text-[10px] text-slate-400 dark:text-sidebar-text tracking-widest uppercase font-semibold">
+                Tailoring OS
+              </span>
+            </div>
           </div>
 
-          {/* Mobile close button */}
+          {/* Mobile close button (X) */}
           <button
             onClick={onClose}
-            className="lg:hidden p-1.5 rounded-lg text-slate-500 dark:text-sidebar-text hover:bg-slate-100 dark:hover:bg-sidebar-hover hover:text-slate-800 dark:hover:text-white transition-colors"
-            aria-label="Close sidebar"
+            className="lg:hidden p-2 rounded-lg text-slate-500 dark:text-sidebar-text hover:bg-slate-100 dark:hover:bg-sidebar-hover hover:text-slate-800 dark:hover:text-white transition-colors"
+            aria-label="Close menu"
           >
-            <HiXMark className="w-5 h-5" />
+            <HiXMark className="w-6 h-6" />
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+        {/* Navigation list */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1.5 scrollbar-thin">
           {filteredNavItems.map((item) => {
             const Icon = iconMap[item.label] || HiHome;
             return (
@@ -108,31 +108,28 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
                 }}
                 className={({ isActive }) =>
                   [
-                    'group flex items-center gap-3 px-3 py-2.5 rounded-xl',
-                    'text-sm font-medium transition-all duration-200',
-                    collapsed ? 'justify-center lg:px-0' : '',
+                    'group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
+                    collapsed ? 'lg:justify-center lg:px-0' : '',
                     isActive
-                      ? 'bg-primary-500/10 dark:bg-primary-600/10 text-primary-600 dark:text-primary-400 border-l-[3px] border-primary-500'
-                      : 'text-slate-600 dark:text-sidebar-text hover:bg-slate-100 dark:hover:bg-sidebar-hover hover:text-slate-900 dark:hover:text-sidebar-text-active border-l-[3px] border-transparent',
+                      ? 'bg-primary-500/10 dark:bg-primary-600/15 text-primary-600 dark:text-primary-400 border-l-4 border-primary-500 font-semibold shadow-xs'
+                      : 'text-slate-600 dark:text-sidebar-text hover:bg-slate-100 dark:hover:bg-sidebar-hover hover:text-slate-900 dark:hover:text-sidebar-text-active border-l-4 border-transparent',
                   ].join(' ')
                 }
               >
-                <Icon
-                  className={[
-                    'flex-shrink-0 w-5 h-5 transition-colors',
-                  ].join(' ')}
-                />
-                {!collapsed && <span className="truncate">{item.label}</span>}
+                <Icon className="flex-shrink-0 w-5 h-5 transition-colors" />
+                <span className={`truncate ${collapsed ? 'lg:hidden' : 'inline'}`}>
+                  {item.label}
+                </span>
               </NavLink>
             );
           })}
         </nav>
 
-        {/* Collapse toggle (desktop only) */}
+        {/* Desktop Collapse toggle button */}
         <div className="hidden lg:flex px-3 pb-2">
           <button
             onClick={onToggleCollapse}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-slate-500 dark:text-sidebar-text hover:bg-slate-100 dark:hover:bg-sidebar-hover hover:text-slate-900 dark:hover:text-sidebar-text-active transition-colors text-xs"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-slate-500 dark:text-sidebar-text hover:bg-slate-100 dark:hover:bg-sidebar-hover hover:text-slate-900 dark:hover:text-sidebar-text-active transition-colors text-xs font-semibold"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? (
@@ -140,41 +137,39 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
             ) : (
               <>
                 <HiChevronDoubleLeft className="w-4 h-4" />
-                <span>Collapse</span>
+                <span>Collapse Bar</span>
               </>
             )}
           </button>
         </div>
 
-        {/* User info */}
-        <div className="border-t border-slate-200 dark:border-slate-800 p-3 flex-shrink-0">
-          <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
-            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-violet-500 flex items-center justify-center text-white text-sm font-bold">
+        {/* User Profile & Logout Section */}
+        <div className="border-t border-slate-200 dark:border-slate-800 p-3 flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/40">
+          <div className={`flex items-center gap-3 ${collapsed ? 'lg:justify-center' : ''}`}>
+            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-violet-600 flex items-center justify-center text-white text-sm font-bold shadow-sm">
               {getInitials(currentUser?.name || 'U')}
             </div>
-            {!collapsed && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-700 dark:text-sidebar-text-active truncate">
-                  {currentUser?.name || 'User'}
-                </p>
-                <span className="inline-block mt-0.5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full bg-primary-500/20 dark:bg-primary-600/20 text-primary-600 dark:text-primary-400">
-                  {currentUser?.role || 'user'}
-                </span>
-              </div>
-            )}
+            <div className={`flex-1 min-w-0 ${collapsed ? 'lg:hidden' : 'block'}`}>
+              <p className="text-sm font-bold text-slate-800 dark:text-sidebar-text-active truncate">
+                {currentUser?.name || 'User'}
+              </p>
+              <span className="inline-block px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md bg-primary-500/15 text-primary-600 dark:text-primary-400 mt-0.5">
+                {currentUser?.role || 'user'}
+              </span>
+            </div>
           </div>
 
           {/* Logout button */}
           <button
             onClick={handleLogout}
             className={[
-              'mt-3 w-full flex items-center gap-2 px-3 py-2 rounded-xl',
-              'text-sm text-slate-600 dark:text-sidebar-text hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 transition-colors',
-              collapsed ? 'justify-center' : '',
+              'mt-3 w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold',
+              'text-rose-600 dark:text-rose-400 bg-rose-50/60 dark:bg-rose-950/20 hover:bg-rose-100 dark:hover:bg-rose-950/40 transition-colors',
+              collapsed ? 'lg:justify-center' : '',
             ].join(' ')}
           >
-            <HiArrowLeftOnRectangle className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span>Logout</span>}
+            <HiArrowLeftOnRectangle className="w-4 h-4 flex-shrink-0" />
+            <span className={collapsed ? 'lg:hidden' : 'inline'}>Sign Out</span>
           </button>
         </div>
       </aside>

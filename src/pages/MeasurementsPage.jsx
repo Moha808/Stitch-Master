@@ -75,7 +75,7 @@ const MeasurementsPage = () => {
     setModalOpen(true);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     const payload = {
       customerId: selectedCustomerId,
@@ -89,9 +89,14 @@ const MeasurementsPage = () => {
       bust: gender === 'female' ? Number(measForm.bust) || 0 : 0,
     };
 
-    addMeasurement(payload);
-    addToast('Measurements logged successfully.', 'success');
-    setModalOpen(false);
+    try {
+      await addMeasurement(payload);
+      addToast('Measurements logged successfully! Updated on dashboard.', 'success');
+      setModalOpen(false);
+    } catch (err) {
+      console.error('Error logging measurements:', err);
+      addToast(err.message || 'Failed to save measurements.', 'error');
+    }
   };
 
   return (
